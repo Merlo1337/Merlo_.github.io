@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Интерьер — 360° тур</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        #panorama {
+            width: 100%;
+            height: 100%;
+        }
+        /* Панель управления */
+        .control-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 10px;
+            z-index: 10;
+        }
+        .nav-btn {
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .nav-btn.active {
+            background: #ff4757;
+        }
+        .home-btn {
+            background: rgba(0,0,0,0.7);
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-size: 14px;
+        }
+        .scene-title {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        @media (max-width: 600px) {
+            .nav-btn { padding: 8px 14px; font-size: 12px; }
+            .home-btn { padding: 8px 14px; font-size: 12px; }
+            .scene-title { font-size: 12px; top: 12px; right: 12px; }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/deviceorientation/deviceorientation.js"></script>
+</head>
+<body>
+    <div id="panorama"></div>
+    
+    <button class="home-btn nav-btn" onclick="goHome()">🏠 Главное меню</button>
+    <div class="scene-title" id="sceneTitle">Сцена 1</div>
+    
+    <div class="control-panel">
+        <button class="nav-btn" onclick="switchScene(0)">📍 Сцена 1</button>
+        <button class="nav-btn" onclick="switchScene(1)">📍 Сцена 2</button>
+        <button class="nav-btn" onclick="switchScene(2)">📍 Сцена 3</button>
+    </div>
+
+    <script>
+        // Конфигурация сцен для интерьера
+        // Замените scene1.png, scene2.png, scene3.png на свои файлы
+        const scenes = [
+            {
+                id: 0,
+                title: "Гостиная",
+                image: "scene1.png",
+                yaw: 0,
+                pitch: 0
+            },
+            {
+                id: 1,
+                title: "Кухня",
+                image: "scene2.png",
+                yaw: 90,
+                pitch: 0
+            },
+            {
+                id: 2,
+                title: "Спальня",
+                image: "scene3.png",
+                yaw: 180,
+                pitch: 0
+            }
+        ];
+        
+        let currentViewer = null;
+        let currentSceneIndex = 0;
+        
+        // Опции просмотра
+        const viewerOptions = {
+            type: "equirectangular",
+            autoLoad: true,
+            showZoomCtrl: false,      // скрываем стандартные контролы
+            showFullscreenCtrl: false,
+            compass: true,
+            mouseZoom: true,
+            touchZoom: true,
+            hfov: 95,                  // угол обзора (65-95)
+            minHfov: 65,
+            maxHfov: 95,
+            yaw: 0,
+            pitch: 0
+        };
+        
+        // Инициализация панорамы
+        function initPanorama(sceneIndex) {
+            const scene = scenes[sceneIndex];
+            if (!scene) return;
+            
+            const config = {
+                ...viewerOptions,
+                panorama: scene.image,
+                yaw: scene.yaw,
+                pitch: scene.pitch
+            };
+            
+            if (currentViewer) {
+                currentViewer.destroy();
+            }
+            
+            currentViewer = pannellum.viewer('panorama', config);
+            document.getElementById('sceneTitle').textContent = scene.title;
+            currentSceneIndex = sceneIndex;
+            
+            // Активируем кнопку
+            document.querySelectorAll('.nav-btn').forEach((btn, idx) => {
+                if (idx === sceneIndex) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+        
+        // Переключение сцены
+        function switchScene(sceneIndex) {
+            if (sceneIndex === currentSceneIndex) return;
+            initPanorama(sceneIndex);
+        }
+        
+        // Возврат в главное меню
+        function goHome() {
+            window.location.href = '../panorama1.html';
+        }
+        
+        // Обработка гироскопа (вращение телефона)
+        function initGyroscope() {
+            if (window.DeviceOrientationEvent) {
+                // Запрос разрешения для iOS 13+
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    // На iOS нужно разрешение по клику
+                    document.body.addEventListener('click', function requestOrientation() {
+                        DeviceOrientationEvent.requestPermission()
+                            .then(permissionState => {
+                                if (permissionState === 'granted') {
+                                    window.addEventListener('deviceorientation', handleOrientation);
+                                }
+                            })
+                            .catch(console.error);
+                        document.body.removeEventListener('click', requestOrientation);
+                    });
+                } else {
+                    // Android и другие
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            }
+        }
+        
+        function handleOrientation(event) {
+            if (!currentViewer) return;
+            // alpha = компас (0-360), beta = наклон вперед-назад, gamma = наклон влево-вправо
+            // Используем gamma для поворота влево-вправо, beta для наклона
+            const gamma = event.gamma; // -90 до 90
+            const beta = event.beta;   // -90 до 90
+            
+            if (gamma !== null && beta !== null) {
+                // Преобразуем в yaw и pitch
+                let yaw = gamma * 2;      // множитель для чувствительности
+                let pitch = beta * 1.5;
+                
+                // Ограничиваем pitch, чтобы не было "переворота"
+                pitch = Math.min(30, Math.max(-30, pitch));
+                
+                // Плавное обновление (без рывков)
+                currentViewer.setYaw(yaw);
+                currentViewer.setPitch(pitch);
+            }
+        }
+        
+        // Запуск
+        initPanorama(0);
+        initGyroscope();
+    </script>
+</body>
+</html>

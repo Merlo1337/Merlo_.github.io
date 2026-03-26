@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>360° Панорамы</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 28px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+        }
+        .card h2 {
+            color: white;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        .card p {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background: #ff4757;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #ff4757;
+            color: #ff4757;
+        }
+        .btn-outline:hover {
+            background: #ff4757;
+            color: white;
+        }
+        .btn-secondary {
+            background: #2ed573;
+        }
+        .btn-secondary:hover {
+            background: #26c065;
+        }
+        .code-input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 30px;
+            border: none;
+            background: rgba(255,255,255,0.9);
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .code-input:focus {
+            outline: none;
+            background: white;
+        }
+        .tg-link {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .tg-link a {
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .tg-link a:hover {
+            color: white;
+        }
+        .error {
+            color: #ff4757;
+            font-size: 12px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ 360° ПАНОРАМЫ</h1>
+        <div class="subtitle">Иммерсивные виртуальные туры</div>
+
+        <!-- Готовый проект: Интерьер -->
+        <div class="card">
+            <h2>🏠 Интерьер</h2>
+            <p>Пример панорамы помещения — гостиная, кухня, спальня</p>
+            <a href="interior/" class="btn">Смотреть →</a>
+        </div>
+
+        <!-- Готовый проект: Экстерьер -->
+        <div class="card">
+            <h2>🌄 Экстерьер</h2>
+            <p>Пример панорамы улицы — городской пейзаж, природа</p>
+            <a href="exterior/" class="btn">Смотреть →</a>
+        </div>
+
+        <!-- Индивидуальный код -->
+        <div class="card">
+            <h2>🔑 Индивидуальный тур</h2>
+            <p>Введите код, полученный при заказе</p>
+            <input type="text" class="code-input" id="accessCode" placeholder="Например: ABC123" maxlength="20">
+            <button onclick="checkCode()" class="btn btn-secondary">Открыть →</button>
+            <div id="errorMsg" class="error">Неверный код. Проверьте и попробуйте снова.</div>
+        </div>
+
+        <div class="tg-link">
+            <a href="https://t.me/Merlo1337" target="_blank">📱 Заказать свою панораму — @Merlo1337</a>
+        </div>
+    </div>
+
+    <script>
+        function checkCode() {
+            const code = document.getElementById('accessCode').value.trim().toUpperCase();
+            const errorDiv = document.getElementById('errorMsg');
+            
+            if (!code) {
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Здесь можно расширять список кодов
+            // Формат: код -> путь к папке
+            const validCodes = {
+                // Примеры кодов (удалите или замените своими)
+                // 'DEMO1': 'custom/demo1',
+                // 'DEMO2': 'custom/demo2'
+            };
+            
+            if (validCodes[code]) {
+                window.location.href = validCodes[code] + '/';
+            } else {
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // Enter в поле ввода
+        document.getElementById('accessCode').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkCode();
+            }
+        });
+    </script>
+</body>
+</html>
