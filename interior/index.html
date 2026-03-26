@@ -20,7 +20,6 @@
             width: 100%;
             height: 100%;
         }
-        /* Панель управления */
         .control-panel {
             position: absolute;
             bottom: 20px;
@@ -44,9 +43,6 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         .nav-btn:active {
@@ -86,7 +82,6 @@
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.css"/>
     <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/deviceorientation/deviceorientation.js"></script>
 </head>
 <body>
     <div id="panorama"></div>
@@ -94,160 +89,191 @@
     <button class="home-btn nav-btn" onclick="goHome()">🏠 Главное меню</button>
     <div class="scene-title" id="sceneTitle">Сцена 1</div>
     
-    <div class="control-panel">
-        <button class="nav-btn" onclick="switchScene(0)">📍 Сцена 1</button>
-        <button class="nav-btn" onclick="switchScene(1)">📍 Сцена 2</button>
-        <button class="nav-btn" onclick="switchScene(2)">📍 Сцена 3</button>
+    <div class="control-panel" id="controlPanel">
+        <button class="nav-btn scene-btn" data-scene="0">📍 Сцена 1</button>
+        <button class="nav-btn scene-btn" data-scene="1">📍 Сцена 2</button>
+        <button class="nav-btn scene-btn" data-scene="2">📍 Сцена 3</button>
     </div>
 
     <script>
-    // Конфигурация сцен
-    const scenes = [
-        { id: 0, title: "Сцена 1", image: "scene1.png", yaw: 0, pitch: 0 },
-        { id: 1, title: "Сцена 2", image: "scene2.png", yaw: 90, pitch: 0 },
-        { id: 2, title: "Сцена 3", image: "scene3.png", yaw: 180, pitch: 0 }
-    ];
-    
-    let currentViewer = null;
-    let currentSceneIndex = 0;
-    let gyroActive = false;
-    let gyroButton = null;
-    
-    // Опции просмотра
-    const viewerOptions = {
-        type: "equirectangular",
-        autoLoad: true,
-        showZoomCtrl: false,
-        showFullscreenCtrl: false,
-        compass: true,
-        mouseZoom: true,
-        touchZoom: true,
-        hfov: 85,                  // угол обзора
-        minHfov: 65,
-        maxHfov: 95,
-        yaw: 0,
-        pitch: 0,
-        // ВАЖНО: НЕ включаем orientationOnByDefault, чтобы управлять вручную
-        orientationOnByDefault: false
-    };
-    
-    // Инициализация панорамы
-    function initPanorama(sceneIndex) {
-        const scene = scenes[sceneIndex];
-        if (!scene) return;
+        // Конфигурация сцен для интерьера
+        const scenes = [
+            { id: 0, title: "Гостиная", image: "scene1.png", yaw: 0, pitch: 0 },
+            { id: 1, title: "Кухня", image: "scene2.png", yaw: 90, pitch: 0 },
+            { id: 2, title: "Спальня", image: "scene3.png", yaw: 180, pitch: 0 }
+        ];
         
-        const config = {
-            ...viewerOptions,
-            panorama: scene.image,
-            yaw: scene.yaw,
-            pitch: scene.pitch
+        let viewer = null;
+        let currentSceneIndex = 0;
+        let gyroActive = false;
+        let gyroButton = null;
+        
+        // Опции просмотра
+        const viewerOptions = {
+            type: "equirectangular",
+            autoLoad: true,
+            showZoomCtrl: false,
+            showFullscreenCtrl: false,
+            compass: true,
+            mouseZoom: true,
+            touchZoom: true,
+            hfov: 85,
+            minHfov: 65,
+            maxHfov: 95,
+            yaw: 0,
+            pitch: 0,
+            orientationOnByDefault: false
         };
         
-        if (currentViewer) {
-            // Сохраняем состояние гироскопа перед уничтожением
+        // Инициализация панорамы
+        function initPanorama(sceneIndex) {
+            const scene = scenes[sceneIndex];
+            if (!scene) return;
+            
+            const config = {
+                ...viewerOptions,
+                panorama: scene.image,
+                yaw: scene.yaw,
+                pitch: scene.pitch
+            };
+            
             const wasGyroActive = gyroActive;
-            currentViewer.destroy();
             
-            // Создаём новый просмотрщик
-            currentViewer = pannellum.viewer('panorama', config);
+            if (viewer) {
+                viewer.destroy();
+            }
             
-            // Восстанавливаем гироскоп если был активен
-            if (wasGyroActive && currentViewer.isOrientationSupported()) {
-                currentViewer.startOrientation();
+            viewer = pannellum.viewer('panorama', config);
+            
+            // Восстанавливаем гироскоп, если был активен
+            if (wasGyroActive && viewer.isOrientationSupported()) {
+                viewer.startOrientation();
                 gyroActive = true;
                 if (gyroButton) gyroButton.textContent = '🔘 Гироскоп ВКЛ';
-            }
-        } else {
-            currentViewer = pannellum.viewer('panorama', config);
-        }
-        
-        document.getElementById('sceneTitle').textContent = scene.title;
-        currentSceneIndex = sceneIndex;
-        
-        // Активируем кнопку сцены
-        document.querySelectorAll('.scene-btn').forEach((btn, idx) => {
-            if (idx === sceneIndex) btn.classList.add('active');
-            else btn.classList.remove('active');
-        });
-    }
-    
-    // Переключение сцены
-    function switchScene(sceneIndex) {
-        if (sceneIndex === currentSceneIndex) return;
-        initPanorama(sceneIndex);
-    }
-    
-    // Переключение гироскопа
-    function toggleGyroscope() {
-        if (!currentViewer) return;
-        
-        if (!currentViewer.isOrientationSupported()) {
-            alert('Ваше устройство не поддерживает управление поворотом');
-            return;
-        }
-        
-        if (gyroActive) {
-            currentViewer.stopOrientation();
-            gyroActive = false;
-            if (gyroButton) gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
-        } else {
-            // Запрос разрешения для iOS
-            if (typeof DeviceOrientationEvent !== 'undefined' && 
-                typeof DeviceOrientationEvent.requestPermission === 'function') {
-                // iOS: запрашиваем разрешение по нажатию кнопки
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            currentViewer.startOrientation();
-                            gyroActive = true;
-                            if (gyroButton) gyroButton.textContent = '🔘 Гироскоп ВКЛ';
-                        } else {
-                            alert('Необходимо разрешение для использования гироскопа');
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Ошибка запроса разрешения:', err);
-                        alert('Не удалось получить доступ к гироскопу');
-                    });
             } else {
-                // Android и другие: включаем сразу
-                currentViewer.startOrientation();
-                gyroActive = true;
-                if (gyroButton) gyroButton.textContent = '🔘 Гироскоп ВКЛ';
+                gyroActive = false;
+                if (gyroButton) gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
+            }
+            
+            document.getElementById('sceneTitle').textContent = scene.title;
+            currentSceneIndex = sceneIndex;
+            
+            // Обновляем активную кнопку сцены
+            document.querySelectorAll('.scene-btn').forEach(btn => {
+                const sceneId = parseInt(btn.getAttribute('data-scene'));
+                if (sceneId === sceneIndex) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        
+        // Переключение сцены
+        function switchScene(sceneIndex) {
+            if (sceneIndex === currentSceneIndex) return;
+            initPanorama(sceneIndex);
+        }
+        
+        // Переключение гироскопа
+        function toggleGyroscope() {
+            if (!viewer) return;
+            
+            if (!viewer.isOrientationSupported()) {
+                alert('Ваше устройство не поддерживает управление поворотом');
+                return;
+            }
+            
+            if (gyroActive) {
+                // Выключаем гироскоп
+                viewer.stopOrientation();
+                gyroActive = false;
+                if (gyroButton) gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
+            } else {
+                // Включаем гироскоп
+                const startGyro = () => {
+                    viewer.startOrientation();
+                    gyroActive = true;
+                    if (gyroButton) gyroButton.textContent = '🔘 Гироскоп ВКЛ';
+                };
+                
+                // iOS требует разрешение
+                if (typeof DeviceOrientationEvent !== 'undefined' && 
+                    typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission()
+                        .then(permissionState => {
+                            if (permissionState === 'granted') {
+                                startGyro();
+                            } else {
+                                alert('Необходимо разрешение для использования гироскопа');
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Ошибка запроса разрешения:', err);
+                            alert('Не удалось получить доступ к гироскопу');
+                        });
+                } else {
+                    startGyro();
+                }
             }
         }
-    }
-    
-    // Возврат в главное меню
-    function goHome() {
-        if (currentViewer) {
-            currentViewer.destroy();
+        
+        // Возврат в главное меню
+        function goHome() {
+            if (viewer) {
+                viewer.destroy();
+            }
+            window.location.href = '../panorama1.html';
         }
-        window.location.href = '../panorama1.html';
-    }
-    
-    // Создаём кнопку гироскопа и добавляем её в панель управления
-    function addGyroButton() {
-        const panel = document.querySelector('.control-panel');
-        if (!panel) return;
         
-        gyroButton = document.createElement('button');
-        gyroButton.className = 'nav-btn';
-        gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
-        gyroButton.onclick = toggleGyroscope;
-        panel.appendChild(gyroButton);
-    }
-    
-    // Запуск после загрузки страницы
-    document.addEventListener('DOMContentLoaded', () => {
-        initPanorama(0);
-        addGyroButton();
+        // Добавляем кнопку гироскопа в панель управления
+        function addGyroButton() {
+            const panel = document.getElementById('controlPanel');
+            if (!panel) return;
+            
+            gyroButton = document.createElement('button');
+            gyroButton.className = 'nav-btn';
+            gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
+            gyroButton.onclick = toggleGyroscope;
+            panel.appendChild(gyroButton);
+        }
         
-        // Обновляем классы для кнопок сцен
-        document.querySelectorAll('.scene-btn').forEach((btn, idx) => {
-            btn.onclick = () => switchScene(idx);
+        // Отслеживаем, не выключился ли гироскоп самопроизвольно (например, при касании)
+        function monitorGyroState() {
+            if (!viewer || !gyroActive) return;
+            
+            // Проверяем, активен ли гироскоп в Pannellum
+            // Если нет — синхронизируем кнопку
+            setTimeout(() => {
+                if (gyroActive && viewer && !viewer.isOrientationActive()) {
+                    console.log('Гироскоп отключился автоматически, синхронизируем кнопку');
+                    gyroActive = false;
+                    if (gyroButton) gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
+                }
+            }, 100);
+        }
+        
+        // Запуск после загрузки страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            addGyroButton();
+            initPanorama(0);
+            
+            // Назначаем обработчики для кнопок сцен
+            document.querySelectorAll('.scene-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sceneId = parseInt(btn.getAttribute('data-scene'));
+                    switchScene(sceneId);
+                });
+            });
+            
+            // Периодически проверяем состояние гироскопа (раз в 500 мс)
+            setInterval(() => {
+                if (viewer && gyroActive && !viewer.isOrientationActive()) {
+                    gyroActive = false;
+                    if (gyroButton) gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
+                }
+            }, 500);
         });
-    });
-</script>
+    </script>
 </body>
 </html>
