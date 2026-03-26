@@ -101,136 +101,153 @@
     </div>
 
     <script>
-        // Конфигурация сцен для интерьера
-        // Замените scene1.png, scene2.png, scene3.png на свои файлы
-        const scenes = [
-            {
-                id: 0,
-                title: "Гостиная",
-                image: "scene1.png",
-                yaw: 0,
-                pitch: 0
-            },
-            {
-                id: 1,
-                title: "Кухня",
-                image: "scene2.png",
-                yaw: 90,
-                pitch: 0
-            },
-            {
-                id: 2,
-                title: "Спальня",
-                image: "scene3.png",
-                yaw: 180,
-                pitch: 0
-            }
-        ];
+    // Конфигурация сцен
+    const scenes = [
+        { id: 0, title: "Сцена 1", image: "scene1.png", yaw: 0, pitch: 0 },
+        { id: 1, title: "Сцена 2", image: "scene2.png", yaw: 90, pitch: 0 },
+        { id: 2, title: "Сцена 3", image: "scene3.png", yaw: 180, pitch: 0 }
+    ];
+    
+    let currentViewer = null;
+    let currentSceneIndex = 0;
+    let gyroActive = false;
+    let gyroButton = null;
+    
+    // Опции просмотра
+    const viewerOptions = {
+        type: "equirectangular",
+        autoLoad: true,
+        showZoomCtrl: false,
+        showFullscreenCtrl: false,
+        compass: true,
+        mouseZoom: true,
+        touchZoom: true,
+        hfov: 85,                  // угол обзора
+        minHfov: 65,
+        maxHfov: 95,
+        yaw: 0,
+        pitch: 0,
+        // ВАЖНО: НЕ включаем orientationOnByDefault, чтобы управлять вручную
+        orientationOnByDefault: false
+    };
+    
+    // Инициализация панорамы
+    function initPanorama(sceneIndex) {
+        const scene = scenes[sceneIndex];
+        if (!scene) return;
         
-        let currentViewer = null;
-        let currentSceneIndex = 0;
-        
-        // Опции просмотра
-        const viewerOptions = {
-            type: "equirectangular",
-            autoLoad: true,
-            showZoomCtrl: false,      // скрываем стандартные контролы
-            showFullscreenCtrl: false,
-            compass: true,
-            mouseZoom: true,
-            touchZoom: true,
-            hfov: 95,                  // угол обзора (65-95)
-            minHfov: 65,
-            maxHfov: 95,
-            yaw: 0,
-            pitch: 0
+        const config = {
+            ...viewerOptions,
+            panorama: scene.image,
+            yaw: scene.yaw,
+            pitch: scene.pitch
         };
         
-        // Инициализация панорамы
-        function initPanorama(sceneIndex) {
-            const scene = scenes[sceneIndex];
-            if (!scene) return;
+        if (currentViewer) {
+            // Сохраняем состояние гироскопа перед уничтожением
+            const wasGyroActive = gyroActive;
+            currentViewer.destroy();
             
-            const config = {
-                ...viewerOptions,
-                panorama: scene.image,
-                yaw: scene.yaw,
-                pitch: scene.pitch
-            };
-            
-            if (currentViewer) {
-                currentViewer.destroy();
-            }
-            
+            // Создаём новый просмотрщик
             currentViewer = pannellum.viewer('panorama', config);
-            document.getElementById('sceneTitle').textContent = scene.title;
-            currentSceneIndex = sceneIndex;
             
-            // Активируем кнопку
-            document.querySelectorAll('.nav-btn').forEach((btn, idx) => {
-                if (idx === sceneIndex) btn.classList.add('active');
-                else btn.classList.remove('active');
-            });
+            // Восстанавливаем гироскоп если был активен
+            if (wasGyroActive && currentViewer.isOrientationSupported()) {
+                currentViewer.startOrientation();
+                gyroActive = true;
+                if (gyroButton) gyroButton.textContent = '🔘 Гироскоп ВКЛ';
+            }
+        } else {
+            currentViewer = pannellum.viewer('panorama', config);
         }
         
-        // Переключение сцены
-        function switchScene(sceneIndex) {
-            if (sceneIndex === currentSceneIndex) return;
-            initPanorama(sceneIndex);
+        document.getElementById('sceneTitle').textContent = scene.title;
+        currentSceneIndex = sceneIndex;
+        
+        // Активируем кнопку сцены
+        document.querySelectorAll('.scene-btn').forEach((btn, idx) => {
+            if (idx === sceneIndex) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+    }
+    
+    // Переключение сцены
+    function switchScene(sceneIndex) {
+        if (sceneIndex === currentSceneIndex) return;
+        initPanorama(sceneIndex);
+    }
+    
+    // Переключение гироскопа
+    function toggleGyroscope() {
+        if (!currentViewer) return;
+        
+        if (!currentViewer.isOrientationSupported()) {
+            alert('Ваше устройство не поддерживает управление поворотом');
+            return;
         }
         
-        // Возврат в главное меню
-        function goHome() {
-            window.location.href = '../panorama1.html';
-        }
-        
-        // Обработка гироскопа (вращение телефона)
-        function initGyroscope() {
-            if (window.DeviceOrientationEvent) {
-                // Запрос разрешения для iOS 13+
-                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    // На iOS нужно разрешение по клику
-                    document.body.addEventListener('click', function requestOrientation() {
-                        DeviceOrientationEvent.requestPermission()
-                            .then(permissionState => {
-                                if (permissionState === 'granted') {
-                                    window.addEventListener('deviceorientation', handleOrientation);
-                                }
-                            })
-                            .catch(console.error);
-                        document.body.removeEventListener('click', requestOrientation);
+        if (gyroActive) {
+            currentViewer.stopOrientation();
+            gyroActive = false;
+            if (gyroButton) gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
+        } else {
+            // Запрос разрешения для iOS
+            if (typeof DeviceOrientationEvent !== 'undefined' && 
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS: запрашиваем разрешение по нажатию кнопки
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            currentViewer.startOrientation();
+                            gyroActive = true;
+                            if (gyroButton) gyroButton.textContent = '🔘 Гироскоп ВКЛ';
+                        } else {
+                            alert('Необходимо разрешение для использования гироскопа');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Ошибка запроса разрешения:', err);
+                        alert('Не удалось получить доступ к гироскопу');
                     });
-                } else {
-                    // Android и другие
-                    window.addEventListener('deviceorientation', handleOrientation);
-                }
+            } else {
+                // Android и другие: включаем сразу
+                currentViewer.startOrientation();
+                gyroActive = true;
+                if (gyroButton) gyroButton.textContent = '🔘 Гироскоп ВКЛ';
             }
         }
-        
-        function handleOrientation(event) {
-            if (!currentViewer) return;
-            // alpha = компас (0-360), beta = наклон вперед-назад, gamma = наклон влево-вправо
-            // Используем gamma для поворота влево-вправо, beta для наклона
-            const gamma = event.gamma; // -90 до 90
-            const beta = event.beta;   // -90 до 90
-            
-            if (gamma !== null && beta !== null) {
-                // Преобразуем в yaw и pitch
-                let yaw = gamma * 2;      // множитель для чувствительности
-                let pitch = beta * 1.5;
-                
-                // Ограничиваем pitch, чтобы не было "переворота"
-                pitch = Math.min(30, Math.max(-30, pitch));
-                
-                // Плавное обновление (без рывков)
-                currentViewer.setYaw(yaw);
-                currentViewer.setPitch(pitch);
-            }
+    }
+    
+    // Возврат в главное меню
+    function goHome() {
+        if (currentViewer) {
+            currentViewer.destroy();
         }
+        window.location.href = '../panorama1.html';
+    }
+    
+    // Создаём кнопку гироскопа и добавляем её в панель управления
+    function addGyroButton() {
+        const panel = document.querySelector('.control-panel');
+        if (!panel) return;
         
-        // Запуск
+        gyroButton = document.createElement('button');
+        gyroButton.className = 'nav-btn';
+        gyroButton.textContent = '📱 Гироскоп ВЫКЛ';
+        gyroButton.onclick = toggleGyroscope;
+        panel.appendChild(gyroButton);
+    }
+    
+    // Запуск после загрузки страницы
+    document.addEventListener('DOMContentLoaded', () => {
         initPanorama(0);
-        initGyroscope();
-    </script>
+        addGyroButton();
+        
+        // Обновляем классы для кнопок сцен
+        document.querySelectorAll('.scene-btn').forEach((btn, idx) => {
+            btn.onclick = () => switchScene(idx);
+        });
+    });
+</script>
 </body>
 </html>
